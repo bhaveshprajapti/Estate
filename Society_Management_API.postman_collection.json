@@ -1,0 +1,1335 @@
+{
+  "info": {
+    "name": "Society Management API - Corrected Flow",
+    "description": "Complete API collection for Society Management Platform with corrected dual authentication methods and SUB_ADMIN invitation flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "society-mgmt-corrected-api",
+    "version": {
+      "major": 2,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication - Dual Login Methods",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.tokens.access);",
+                  "    pm.environment.set('refresh_token', response.tokens.refresh);",
+                  "    if (response.otp_info) {",
+                  "        pm.environment.set('last_otp', response.otp_info.otp_code);",
+                  "        console.log('Registration OTP:', response.otp_info.otp_code);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"email\": \"{{test_email}}\",\n    \"first_name\": \"{{test_first_name}}\",\n    \"last_name\": \"{{test_last_name}}\",\n    \"password\": \"{{test_password}}\",\n    \"password_confirm\": \"{{test_password}}\",\n    \"role\": \"{{test_role}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Login with Password (Method 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.tokens.access);",
+                  "    pm.environment.set('refresh_token', response.tokens.refresh);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    pm.environment.set('user_role', response.user.role);",
+                  "    console.log('Login successful with password');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-password/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login-password", ""]
+            }
+          }
+        },
+        {
+          "name": "Login with OTP - Step 1: Send OTP (Method 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('login_otp', response.otp_code);",
+                  "    console.log('Login OTP sent:', response.otp_code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-otp-step1/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login-otp-step1", ""]
+            }
+          }
+        },
+        {
+          "name": "Login with OTP - Step 2: Verify OTP (Method 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.tokens.access);",
+                  "    pm.environment.set('refresh_token', response.tokens.refresh);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    pm.environment.set('user_role', response.user.role);",
+                  "    console.log('Login successful with OTP');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"otp_code\": \"{{login_otp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-otp-step2/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login-otp-step2", ""]
+            }
+          }
+        },
+        {
+          "name": "Legacy Login (Backward Compatibility)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.tokens.access);",
+                  "    pm.environment.set('refresh_token', response.tokens.refresh);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    pm.environment.set('user_role', response.user.role);",
+                  "    if (response.otp_info) {",
+                  "        pm.environment.set('last_otp', response.otp_info.otp_code);",
+                  "        console.log('Legacy Login OTP:', response.otp_info.otp_code);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile", ""]
+            }
+          }
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout", ""]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/token/refresh/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "token", "refresh", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🗺️ SUB_ADMIN Invitation Flow",
+      "item": [
+        {
+          "name": "Step 1: ADMIN Creates Society",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('society_id', response.id);",
+                  "    console.log('Society created:', response.name);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"{{society_name}}\",\n    \"address\": \"{{society_address}}\",\n    \"city\": \"{{society_city}}\",\n    \"state\": \"{{society_state}}\",\n    \"pincode\": \"{{society_pincode}}\",\n    \"registration_number\": \"{{society_reg_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/societies/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", ""]
+            }
+          }
+        },
+        {
+          "name": "Step 2: ADMIN Invites SUB_ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('invitation_id', response.invitation.id);",
+                  "    pm.environment.set('invitation_otp', response.otp_info.otp_code);",
+                  "    console.log('Invitation created for:', response.invitation.phone_number);",
+                  "    console.log('Invitation OTP:', response.otp_info.otp_code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"phone_number\": \"{{subadmin_phone}}\",\n    \"email\": \"{{subadmin_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/create-subadmin-invitation/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "create-subadmin-invitation", ""]
+            }
+          }
+        },
+        {
+          "name": "Step 3: SUB_ADMIN Verifies OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('OTP verified successfully');",
+                  "    console.log('Next step:', response.next_step);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{subadmin_phone}}\",\n    \"otp_code\": \"{{invitation_otp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitation/verify-otp/",
+              "host": ["{{base_url}}"],
+              "path": ["invitation", "verify-otp", ""]
+            }
+          }
+        },
+        {
+          "name": "Step 4: SUB_ADMIN Completes Registration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('subadmin_access_token', response.tokens.access);",
+                  "    pm.environment.set('subadmin_refresh_token', response.tokens.refresh);",
+                  "    pm.environment.set('subadmin_user_id', response.user.id);",
+                  "    console.log('SUB_ADMIN registration completed:', response.user.first_name + ' ' + response.user.last_name);",
+                  "    console.log('Society assigned:', response.society.name);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"invitation_id\": {{invitation_id}},\n    \"first_name\": \"{{subadmin_first_name}}\",\n    \"last_name\": \"{{subadmin_last_name}}\",\n    \"password\": \"{{subadmin_password}}\",\n    \"password_confirm\": \"{{subadmin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitation/complete-registration/",
+              "host": ["{{base_url}}"],
+              "path": ["invitation", "complete-registration", ""]
+            }
+          }
+        },
+        {
+          "name": "List SUB_ADMIN Invitations (ADMIN Only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/subadmin-invitations/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "subadmin-invitations", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📱 OTP & Password Reset",
+      "item": [
+        {
+          "name": "Send OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('last_otp', response.otp_code);",
+                  "    console.log('OTP Code:', response.otp_code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"purpose\": \"{{otp_purpose}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/send-otp/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "send-otp", ""]
+            }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"otp_code\": \"{{last_otp}}\",\n    \"purpose\": \"{{otp_purpose}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-otp/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-otp", ""]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('forgot_password_otp', response.otp_code);",
+                  "    console.log('Forgot Password OTP:', response.otp_code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "forgot-password", ""]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.tokens.access);",
+                  "    pm.environment.set('refresh_token', response.tokens.refresh);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{test_phone}}\",\n    \"otp_code\": \"{{forgot_password_otp}}\",\n    \"new_password\": \"{{new_password}}\",\n    \"confirm_password\": \"{{new_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "reset-password", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Society Management",
+      "item": [
+        {
+          "name": "List Societies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/societies/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Society",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('society_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"{{society_name}}\",\n    \"address\": \"{{society_address}}\",\n    \"city\": \"{{society_city}}\",\n    \"state\": \"{{society_state}}\",\n    \"pincode\": \"{{society_pincode}}\",\n    \"registration_number\": \"{{society_reg_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/societies/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Society Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/societies/{{society_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", "{{society_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Society",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"{{society_name}} Updated\",\n    \"address\": \"{{society_address}}\",\n    \"city\": \"{{society_city}}\",\n    \"state\": \"{{society_state}}\",\n    \"pincode\": \"{{society_pincode}}\",\n    \"registration_number\": \"{{society_reg_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/societies/{{society_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", "{{society_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Society",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/societies/{{society_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["societies", "{{society_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏠 Flat Management",
+      "item": [
+        {
+          "name": "List Flats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/flats/",
+              "host": ["{{base_url}}"],
+              "path": ["flats", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Flat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('flat_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"flat_number\": \"{{flat_number}}\",\n    \"floor\": {{flat_floor}},\n    \"type\": \"{{flat_type}}\",\n    \"area\": {{flat_area}},\n    \"owner\": {{user_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/flats/",
+              "host": ["{{base_url}}"],
+              "path": ["flats", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Flat Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/flats/{{flat_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["flats", "{{flat_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Flat",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"flat_number\": \"{{flat_number}}\",\n    \"floor\": {{flat_floor}},\n    \"type\": \"{{flat_type}}\",\n    \"area\": {{flat_area}},\n    \"owner\": {{user_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/flats/{{flat_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["flats", "{{flat_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Flat",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/flats/{{flat_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["flats", "{{flat_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📧 Chairman Invitations",
+      "item": [
+        {
+          "name": "List Chairman Invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chairman-invitations/",
+              "host": ["{{base_url}}"],
+              "path": ["chairman-invitations", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Chairman Invitation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('invitation_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"email\": \"{{chairman_email}}\",\n    \"phone_number\": \"{{chairman_phone}}\",\n    \"first_name\": \"{{chairman_first_name}}\",\n    \"last_name\": \"{{chairman_last_name}}\",\n    \"expires_at\": \"{{invitation_expires_at}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chairman-invitations/",
+              "host": ["{{base_url}}"],
+              "path": ["chairman-invitations", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Chairman Invitation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chairman-invitations/{{invitation_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["chairman-invitations", "{{invitation_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Accept Chairman Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chairman-invitations/{{invitation_id}}/accept/",
+              "host": ["{{base_url}}"],
+              "path": ["chairman-invitations", "{{invitation_id}}", "accept", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Vehicle Management",
+      "item": [
+        {
+          "name": "List Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vehicles/",
+              "host": ["{{base_url}}"],
+              "path": ["vehicles", ""]
+            }
+          }
+        },
+        {
+          "name": "Add Vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('vehicle_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"owner\": {{user_id}},\n    \"vehicle_number\": \"{{vehicle_number}}\",\n    \"vehicle_type\": \"{{vehicle_type}}\",\n    \"brand\": \"{{vehicle_brand}}\",\n    \"model\": \"{{vehicle_model}}\",\n    \"color\": \"{{vehicle_color}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vehicles/",
+              "host": ["{{base_url}}"],
+              "path": ["vehicles", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vehicles/{{vehicle_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["vehicles", "{{vehicle_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"owner\": {{user_id}},\n    \"vehicle_number\": \"{{vehicle_number}}\",\n    \"vehicle_type\": \"{{vehicle_type}}\",\n    \"brand\": \"{{vehicle_brand}}\",\n    \"model\": \"{{vehicle_model}}\",\n    \"color\": \"{{vehicle_color}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vehicles/{{vehicle_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["vehicles", "{{vehicle_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vehicles/{{vehicle_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["vehicles", "{{vehicle_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Billing System",
+      "item": [
+        {
+          "name": "List Maintenance Bills",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/maintenance-bills/",
+              "host": ["{{base_url}}"],
+              "path": ["maintenance-bills", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Maintenance Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"flat\": {{flat_id}},\n    \"amount\": {{maintenance_amount}},\n    \"bill_month\": \"{{bill_month}}\",\n    \"due_date\": \"{{bill_due_date}}\",\n    \"description\": \"{{bill_description}}\",\n    \"status\": \"PENDING\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/maintenance-bills/",
+              "host": ["{{base_url}}"],
+              "path": ["maintenance-bills", ""]
+            }
+          }
+        },
+        {
+          "name": "List Common Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/common-expenses/",
+              "host": ["{{base_url}}"],
+              "path": ["common-expenses", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Common Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"title\": \"{{expense_title}}\",\n    \"description\": \"{{expense_description}}\",\n    \"total_amount\": {{expense_total_amount}},\n    \"expense_date\": \"{{expense_date}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/common-expenses/",
+              "host": ["{{base_url}}"],
+              "path": ["common-expenses", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📢 Community Features",
+      "item": [
+        {
+          "name": "List Notices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notices/",
+              "host": ["{{base_url}}"],
+              "path": ["notices", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Notice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"title\": \"{{notice_title}}\",\n    \"content\": \"{{notice_content}}\",\n    \"priority\": \"{{notice_priority}}\",\n    \"valid_until\": \"{{notice_valid_until}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notices/",
+              "host": ["{{base_url}}"],
+              "path": ["notices", ""]
+            }
+          }
+        },
+        {
+          "name": "List Amenities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/amenities/",
+              "host": ["{{base_url}}"],
+              "path": ["amenities", ""]
+            }
+          }
+        },
+        {
+          "name": "Book Amenity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amenity\": {{amenity_id}},\n    \"booking_date\": \"{{booking_date}}\",\n    \"start_time\": \"{{booking_start_time}}\",\n    \"end_time\": \"{{booking_end_time}}\",\n    \"purpose\": \"{{booking_purpose}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/amenity-bookings/",
+              "host": ["{{base_url}}"],
+              "path": ["amenity-bookings", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Security & Complaints",
+      "item": [
+        {
+          "name": "List Visitors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/visitors/",
+              "host": ["{{base_url}}"],
+              "path": ["visitors", ""]
+            }
+          }
+        },
+        {
+          "name": "Add Visitor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"flat\": {{flat_id}},\n    \"visitor_name\": \"{{visitor_name}}\",\n    \"visitor_phone\": \"{{visitor_phone}}\",\n    \"purpose\": \"{{visit_purpose}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/visitors/",
+              "host": ["{{base_url}}"],
+              "path": ["visitors", ""]
+            }
+          }
+        },
+        {
+          "name": "List Complaints",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/complaints/",
+              "host": ["{{base_url}}"],
+              "path": ["complaints", ""]
+            }
+          }
+        },
+        {
+          "name": "Submit Complaint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"society\": {{society_id}},\n    \"title\": \"{{complaint_title}}\",\n    \"description\": \"{{complaint_description}}\",\n    \"category\": \"{{complaint_category}}\",\n    \"priority\": \"{{complaint_priority}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/complaints/",
+              "host": ["{{base_url}}"],
+              "path": ["complaints", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
