@@ -22,7 +22,7 @@ router.register(r'marketplace', views.MarketplaceListingViewSet)
 router.register(r'jobs', views.JobListingViewSet)
 router.register(r'ad-banners', views.AdBannerViewSet)
 
-# New enhanced management endpoints
+# Enhanced management endpoints
 router.register(r'chairman-invitations', views.ChairmanInvitationViewSet)
 router.register(r'staff-categories', views.StaffCategoryViewSet)
 router.register(r'staff-members', views.StaffMemberViewSet)
@@ -35,6 +35,22 @@ router.register(r'fee-structures', views.FeeStructureViewSet)
 router.register(r'bulk-operations', views.BulkUserOperationViewSet)
 router.register(r'admin-societies', views.AdminSocietyViewSet)
 
+# Comprehensive Society Management endpoints
+router.register(r'buildings', views.BuildingViewSet)
+router.register(r'enhanced-flats', views.EnhancedFlatViewSet)
+router.register(r'member-requests', views.MemberRegistrationRequestViewSet)
+router.register(r'member-invitations', views.MemberInvitationViewSet)
+router.register(r'staff-invitations', views.StaffInvitationViewSet)
+router.register(r'society-profiles', views.SocietyProfileViewSet)
+router.register(r'helpdesk-designations', views.HelpdeskDesignationViewSet)
+router.register(r'helpdesk-contacts', views.HelpdeskContactViewSet)
+router.register(r'bill-types', views.BillTypeViewSet)
+router.register(r'enhanced-bills', views.EnhancedBillViewSet)
+router.register(r'bill-distributions', views.BillDistributionViewSet)
+router.register(r'visitor-passes', views.VisitorPassViewSet)
+router.register(r'gate-logs', views.GateUpdateLogViewSet)
+router.register(r'directory', views.DirectoryEntryViewSet)
+
 urlpatterns = [
     # Authentication endpoints
     path('auth/register/', views.register, name='register'),
@@ -45,6 +61,10 @@ urlpatterns = [
     path('auth/logout/', views.logout, name='logout'),
     path('auth/profile/', views.UserProfileView.as_view(), name='profile'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # SECURE USER CREATION ENDPOINTS
+    path('admin/create-admin-user/', views.create_admin_user, name='create_admin_user'),  # Superuser only
+    path('admin/create-staff-user/', views.create_staff_user, name='create_staff_user'),  # SUB_ADMIN/ADMIN only
     
     # OTP and Password Reset endpoints
     path('auth/forgot-password/', views.forgot_password, name='forgot_password'),
@@ -57,6 +77,11 @@ urlpatterns = [
     path('admin/subadmin-invitations/', views.list_subadmin_invitations, name='list_subadmin_invitations'),
     path('invitation/verify-otp/', views.verify_invitation_otp, name='verify_invitation_otp'),
     path('invitation/complete-registration/', views.complete_subadmin_registration, name='complete_subadmin_registration'),
+    
+    # Member Registration endpoints
+    path('societies/search/', views.search_societies, name='search_societies'),
+    path('members/self-register/', views.self_register_member, name='self_register_member'),
+    path('members/direct-add/', views.direct_add_member, name='direct_add_member'),  # SUB_ADMIN direct add
     
     # Enhanced user management endpoints
     path('users/bulk-import/', views.bulk_user_import, name='bulk_user_import'),

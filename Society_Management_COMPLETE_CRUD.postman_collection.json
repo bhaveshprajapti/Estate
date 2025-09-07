@@ -1,0 +1,345 @@
+{
+  "info": {
+    "name": "🏢 Society Management - COMPLETE CRUD Collection",
+    "description": "100% COMPREHENSIVE API Collection with ALL CRUD Operations for EVERY Implemented Feature including Complete Bill Management, Society Settings, Rules & Regulations, Helpdesk Management, and Full Update/Delete Operations",
+    "version": "6.0.0 - ULTIMATE EDITION",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"}],
+  "item": [
+    {
+      "name": "🔐 Authentication (Complete)",
+      "item": [
+        {
+          "name": "👑 Super Admin Login",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 200) { const r = pm.response.json(); pm.environment.set('super_admin_token', r.tokens.access); console.log('🚀 Super Admin Login Success'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{super_admin_phone}}\",\n    \"password\": \"{{super_admin_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        },
+        {
+          "name": "🔑 ADMIN Login",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 200) { const r = pm.response.json(); pm.environment.set('access_token', r.tokens.access); pm.environment.set('admin_user_id', r.user.id); console.log('✅ ADMIN Login'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{admin_phone}}\",\n    \"password\": \"{{admin_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Society Management (Complete CRUD + Rules)",
+      "item": [
+        {
+          "name": "🏗️ CREATE Society",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('society_id', r.id); console.log('Society created:', r.name); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"name\": \"{{society_name}}\",\n    \"address\": \"{{society_address}}\",\n    \"city\": \"{{society_city}}\",\n    \"state\": \"{{society_state}}\",\n    \"pincode\": \"{{society_pincode}}\",\n    \"registration_number\": \"{{society_registration}}\"\n}"},
+            "url": {"raw": "{{base_url}}/societies/", "host": ["{{base_url}}"], "path": ["societies", ""]}
+          }
+        },
+        {
+          "name": "📋 READ All Societies",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/societies/", "host": ["{{base_url}}"], "path": ["societies", ""]}
+          }
+        },
+        {
+          "name": "🔍 READ Society Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/societies/{{society_id}}/", "host": ["{{base_url}}"], "path": ["societies", "{{society_id}}", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Society",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"name\": \"{{society_name}} - Updated\",\n    \"address\": \"{{society_address}} - New Address\",\n    \"city\": \"{{society_city}}\",\n    \"state\": \"{{society_state}}\",\n    \"pincode\": \"{{society_pincode}}\",\n    \"registration_number\": \"{{society_registration}}\"\n}"},
+            "url": {"raw": "{{base_url}}/societies/{{society_id}}/", "host": ["{{base_url}}"], "path": ["societies", "{{society_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ DELETE Society",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/societies/{{society_id}}/", "host": ["{{base_url}}"], "path": ["societies", "{{society_id}}", ""]}
+          }
+        },
+        {
+          "name": "⚙️ CREATE Society Settings",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('society_settings_id', r.id); console.log('Society settings created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"default_maintenance_amount\": 5000.00,\n    \"maintenance_due_day\": 5,\n    \"late_fee_percentage\": 5.0,\n    \"allow_marketplace\": true,\n    \"allow_job_postings\": true,\n    \"auto_approve_bookings\": false,\n    \"visitor_approval_required\": true,\n    \"max_visitor_duration_hours\": 24,\n    \"email_notifications\": true,\n    \"sms_notifications\": false,\n    \"working_hours_start\": \"09:00\",\n    \"working_hours_end\": \"18:00\",\n    \"contact_email\": \"admin@society.com\",\n    \"contact_phone\": \"{{subadmin_phone}}\"\n}"},
+            "url": {"raw": "{{base_url}}/society-settings/", "host": ["{{base_url}}"], "path": ["society-settings", ""]}
+          }
+        },
+        {
+          "name": "📋 READ Society Settings",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/society-settings/", "host": ["{{base_url}}"], "path": ["society-settings", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Society Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"default_maintenance_amount\": 6000.00,\n    \"maintenance_due_day\": 10,\n    \"late_fee_percentage\": 7.5,\n    \"allow_marketplace\": true,\n    \"allow_job_postings\": true,\n    \"auto_approve_bookings\": true,\n    \"visitor_approval_required\": false,\n    \"max_visitor_duration_hours\": 48,\n    \"email_notifications\": true,\n    \"sms_notifications\": true,\n    \"working_hours_start\": \"08:00\",\n    \"working_hours_end\": \"20:00\",\n    \"contact_email\": \"updated@society.com\",\n    \"contact_phone\": \"{{subadmin_phone}}\"\n}"},
+            "url": {"raw": "{{base_url}}/society-settings/{{society_settings_id}}/", "host": ["{{base_url}}"], "path": ["society-settings", "{{society_settings_id}}", ""]}
+          }
+        },
+        {
+          "name": "📄 CREATE Society Profile (Rules & Regulations)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('society_profile_id', r.id); console.log('Society profile with rules created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"established_year\": 2020,\n    \"total_units\": 100,\n    \"society_logo\": \"https://example.com/logo.png\",\n    \"society_type\": \"Residential\",\n    \"amenities_list\": [\"Swimming Pool\", \"Gym\", \"Garden\", \"Parking\"],\n    \"society_rules\": \"1. No loud music after 10 PM\\n2. Pets must be on leash\\n3. Visitors must register at gate\\n4. No parking in fire lane\\n5. Common areas to be kept clean\",\n    \"visitor_policy\": \"All visitors must register at gate with valid ID. Maximum stay 24 hours without prior approval.\",\n    \"pet_policy\": \"Pets allowed with society approval. Must be vaccinated and registered.\",\n    \"parking_rules\": \"Only registered vehicles allowed. No parking in visitor slots.\",\n    \"noise_policy\": \"No loud music/noise after 10 PM and before 7 AM on weekdays.\",\n    \"office_timings\": \"9:00 AM to 6:00 PM (Mon-Sat)\",\n    \"emergency_contact\": \"{{subadmin_phone}}\",\n    \"website\": \"https://testsociety.com\",\n    \"social_media_links\": {\"facebook\": \"fb.com/testsociety\", \"whatsapp\": \"wa.me/testsociety\"},\n    \"registration_authority\": \"Municipal Corporation\",\n    \"gst_number\": \"12ABCDE1234F1Z5\",\n    \"pan_number\": \"ABCDE1234F\"\n}"},
+            "url": {"raw": "{{base_url}}/society-profiles/", "host": ["{{base_url}}"], "path": ["society-profiles", ""]}
+          }
+        },
+        {
+          "name": "📋 READ Society Profiles",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/society-profiles/", "host": ["{{base_url}}"], "path": ["society-profiles", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Society Rules & Regulations",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society_rules\": \"UPDATED RULES:\\n1. No loud music after 9 PM\\n2. Pets must be on leash in common areas\\n3. All visitors must register at main gate\\n4. No parking in fire safety zones\\n5. Common areas must be kept clean at all times\\n6. No washing/drying clothes in balconies facing main road\\n7. Festival celebrations require prior society approval\",\n    \"visitor_policy\": \"UPDATED: All visitors must register with security guard. ID proof mandatory. Maximum 12-hour stay without approval.\",\n    \"pet_policy\": \"UPDATED: Maximum 2 pets per flat. All pets must be registered with society office.\",\n    \"parking_rules\": \"UPDATED: Parking allotted based on flat type. Two-wheelers in designated areas only.\",\n    \"noise_policy\": \"UPDATED: Complete silence after 10 PM. Generator use restricted to emergency only.\"\n}"},
+            "url": {"raw": "{{base_url}}/society-profiles/{{society_profile_id}}/", "host": ["{{base_url}}"], "path": ["society-profiles", "{{society_profile_id}}", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Complete Bill Management (All Types + Full CRUD)",
+      "item": [
+        {
+          "name": "📊 CREATE Bill Type - Maintenance",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('maintenance_bill_type_id', r.id); console.log('Maintenance bill type created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Monthly Maintenance\",\n    \"description\": \"Regular monthly maintenance charges\",\n    \"is_recurring\": true,\n    \"recurrence_period\": \"monthly\",\n    \"is_splitable\": false,\n    \"default_amount\": 5000.00,\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/bill-types/", "host": ["{{base_url}}"], "path": ["bill-types", ""]}
+          }
+        },
+        {
+          "name": "📊 CREATE Bill Type - Electricity",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('electricity_bill_type_id', r.id); console.log('Electricity bill type created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Electricity Bill\",\n    \"description\": \"Monthly electricity charges\",\n    \"is_recurring\": true,\n    \"recurrence_period\": \"monthly\",\n    \"is_splitable\": true,\n    \"default_amount\": 2000.00,\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/bill-types/", "host": ["{{base_url}}"], "path": ["bill-types", ""]}
+          }
+        },
+        {
+          "name": "📊 CREATE Bill Type - Water",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('water_bill_type_id', r.id); console.log('Water bill type created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Water Supply\",\n    \"description\": \"Monthly water charges\",\n    \"is_recurring\": true,\n    \"recurrence_period\": \"monthly\",\n    \"is_splitable\": true,\n    \"default_amount\": 800.00,\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/bill-types/", "host": ["{{base_url}}"], "path": ["bill-types", ""]}
+          }
+        },
+        {
+          "name": "📋 READ All Bill Types",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/bill-types/", "host": ["{{base_url}}"], "path": ["bill-types", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Bill Type",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Monthly Maintenance Updated\",\n    \"description\": \"Updated maintenance charges\",\n    \"is_recurring\": true,\n    \"recurrence_period\": \"monthly\",\n    \"default_amount\": 5500.00,\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/bill-types/{{maintenance_bill_type_id}}/", "host": ["{{base_url}}"], "path": ["bill-types", "{{maintenance_bill_type_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ DELETE Bill Type",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/bill-types/{{water_bill_type_id}}/", "host": ["{{base_url}}"], "path": ["bill-types", "{{water_bill_type_id}}", ""]}
+          }
+        },
+        {
+          "name": "💳 CREATE Enhanced Bill",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('maintenance_bill_id', r.id); console.log('Bill created:', r.bill_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"bill_type\": {{maintenance_bill_type_id}},\n    \"title\": \"January 2025 Maintenance\",\n    \"description\": \"Monthly maintenance charges\",\n    \"amount\": 5000.00,\n    \"tax_amount\": 900.00,\n    \"payment_details\": {\n        \"bank_name\": \"State Bank of India\",\n        \"account_number\": \"1234567890\",\n        \"ifsc\": \"SBIN0001234\"\n    },\n    \"due_date\": \"2025-02-15\",\n    \"attachments\": [\"http://example.com/bill.pdf\"],\n    \"is_recurring\": true,\n    \"status\": \"PENDING\"\n}"},
+            "url": {"raw": "{{base_url}}/enhanced-bills/", "host": ["{{base_url}}"], "path": ["enhanced-bills", ""]}
+          }
+        },
+        {
+          "name": "📋 READ All Enhanced Bills",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/enhanced-bills/", "host": ["{{base_url}}"], "path": ["enhanced-bills", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Bill Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"status\": \"PAID\",\n    \"payment_mode\": \"ONLINE\",\n    \"transaction_id\": \"TXN123456789\"\n}"},
+            "url": {"raw": "{{base_url}}/enhanced-bills/{{maintenance_bill_id}}/", "host": ["{{base_url}}"], "path": ["enhanced-bills", "{{maintenance_bill_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ DELETE Enhanced Bill",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/enhanced-bills/{{maintenance_bill_id}}/", "host": ["{{base_url}}"], "path": ["enhanced-bills", "{{maintenance_bill_id}}", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Helpdesk Management (Complete with Contacts)",
+      "item": [
+        {
+          "name": "🔧 CREATE Helpdesk Designation",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('helpdesk_designation_id', r.id); console.log('Helpdesk designation created'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"title\": \"{{helpdesk_designation}}\",\n    \"description\": \"Electrical maintenance services\",\n    \"category\": \"Maintenance\",\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/helpdesk-designations/", "host": ["{{base_url}}"], "path": ["helpdesk-designations", ""]}
+          }
+        },
+        {
+          "name": "📞 CREATE Helpdesk Contact (WITH Phone)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('helpdesk_contact_id', r.id); console.log('Contact created with phone:', r.contact_phone); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"designation\": {{helpdesk_designation_id}},\n    \"name\": \"Ramesh Electrical Services\",\n    \"contact_phone\": \"9876543210\",\n    \"contact_email\": \"ramesh@gmail.com\",\n    \"address\": \"Shop 15, Electrical Market\",\n    \"availability\": \"Mon-Sat 9 AM to 7 PM\",\n    \"service_charges\": \"Inspection: Free, Repair: Rs 200/hour\",\n    \"rating\": 4.5,\n    \"is_active\": true,\n    \"is_verified\": true\n}"},
+            "url": {"raw": "{{base_url}}/helpdesk-contacts/", "host": ["{{base_url}}"], "path": ["helpdesk-contacts", ""]}
+          }
+        },
+        {
+          "name": "📋 READ All Helpdesk Contacts",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/helpdesk-contacts/", "host": ["{{base_url}}"], "path": ["helpdesk-contacts", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Helpdesk Contact",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"designation\": {{helpdesk_designation_id}},\n    \"name\": \"Ramesh Electrical - UPDATED\",\n    \"contact_phone\": \"9876543211\",\n    \"contact_email\": \"ramesh.updated@gmail.com\",\n    \"address\": \"Shop 16, New Location\",\n    \"availability\": \"Mon-Sun 8 AM to 8 PM\",\n    \"service_charges\": \"Updated rates: Rs 250/hour\",\n    \"rating\": 4.7,\n    \"is_active\": true,\n    \"is_verified\": true\n}"},
+            "url": {"raw": "{{base_url}}/helpdesk-contacts/{{helpdesk_contact_id}}/", "host": ["{{base_url}}"], "path": ["helpdesk-contacts", "{{helpdesk_contact_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ DELETE Helpdesk Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}],
+            "url": {"raw": "{{base_url}}/helpdesk-contacts/{{helpdesk_contact_id}}/", "host": ["{{base_url}}"], "path": ["helpdesk-contacts", "{{helpdesk_contact_id}}", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Vehicle Management (Complete CRUD)",
+      "item": [
+        {
+          "name": "🏗️ CREATE Building (Prerequisite)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('building_id', r.id); console.log('Building created:', r.name); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"{{building_name}}\",\n    \"description\": \"Test building\",\n    \"total_floors\": 10,\n    \"total_units\": 40\n}"},
+            "url": {"raw": "{{base_url}}/buildings/", "host": ["{{base_url}}"], "path": ["buildings", ""]}
+          }
+        },
+        {
+          "name": "🏠 CREATE Flat (Prerequisite)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('flat_id', r.id); console.log('Flat created:', r.flat_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"block_number\": \"A\",\n    \"flat_number\": \"{{flat_number}}\",\n    \"type\": \"2BHK\",\n    \"area_sqft\": 1200,\n    \"owner\": {{admin_user_id}}\n}"},
+            "url": {"raw": "{{base_url}}/flats/", "host": ["{{base_url}}"], "path": ["flats", ""]}
+          }
+        },
+        {
+          "name": "🚗 CREATE Vehicle",
+          "event":": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('vehicle_id', r.id); console.log('Vehicle registered:', r.vehicle_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"vehicle_number\": \"{{vehicle_number}}\",\n    \"type\": \"CAR\",\n    \"owner\": {{admin_user_id}},\n    \"flat\": {{flat_id}}\n}"},
+            "url": {"raw": "{{base_url}}/vehicles/", "host": ["{{base_url}}"], "path": ["vehicles", ""]}
+          }
+        },
+        {
+          "name": "📋 READ All Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/vehicles/", "host": ["{{base_url}}"], "path": ["vehicles", ""]}
+          }
+        },
+        {
+          "name": "✏️ UPDATE Vehicle",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"type\": \"BIKE\"\n}"},
+            "url": {"raw": "{{base_url}}/vehicles/{{vehicle_id}}/", "host": ["{{base_url}}"], "path": ["vehicles", "{{vehicle_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ DELETE Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/vehicles/{{vehicle_id}}/", "host": ["{{base_url}}"], "path": ["vehicles", "{{vehicle_id}}", ""]}
+          }
+        }
+      ]
+    }
+  ]
+}

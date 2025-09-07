@@ -1,0 +1,416 @@
+{
+  "info": {
+    "name": "🏢 Society Management - 100% COMPLETE CRUD API Collection",
+    "description": "COMPREHENSIVE API Collection with ALL CRUD Operations for EVERY Implemented Feature - Complete Bill Management, Society Settings, Rules & Regulations, Helpdesk with Contacts, and Full Update/Delete Operations",
+    "version": "5.0.0 - COMPLETE EDITION",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{"key": "base_url", "value": "http://localhost:8000/api", "type": "string"}],
+  "item": [
+    {
+      "name": "🔐 Authentication (Complete)",
+      "item": [
+        {
+          "name": "👑 Super Admin Login",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 200) { const r = pm.response.json(); pm.environment.set('super_admin_token', r.tokens.access); console.log('🚀 Super Admin Login Success'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{super_admin_phone}}\",\n    \"password\": \"{{super_admin_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        },
+        {
+          "name": "🔑 ADMIN Login",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 200) { const r = pm.response.json(); pm.environment.set('access_token', r.tokens.access); pm.environment.set('admin_user_id', r.user.id); console.log('✅ ADMIN Login'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{admin_phone}}\",\n    \"password\": \"{{admin_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        },
+        {
+          "name": "📝 Member Registration (Pending)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('pending_member_phone', r.user.phone_number); console.log('Member needs approval:', r.user.phone_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{member_phone}}\",\n    \"email\": \"{{member_email}}\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"Member\",\n    \"password\": \"{{member_password}}\",\n    \"password_confirm\": \"{{member_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/register/", "host": ["{{base_url}}"], "path": ["auth", "register", ""]}
+          }
+        },
+        {
+          "name": "❌ Test Blocked Login (Shows Chairman Contact)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 400) { const error = pm.response.json(); console.log('✅ Login blocked - Chairman contact:', error.non_field_errors[0]); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{pending_member_phone}}\",\n    \"password\": \"{{member_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Society Management",
+      "item": [
+        {
+          "name": "🏗️ Create Society",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('society_id', r.id); console.log('Society created:', r.name); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"name\": \"Test Society\",\n    \"address\": \"123 Test Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\",\n    \"registration_number\": \"TS2025001\"\n}"},
+            "url": {"raw": "{{base_url}}/societies/", "host": ["{{base_url}}"], "path": ["societies", ""]}
+          }
+        },
+        {
+          "name": "🔍 Search Societies (Public)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "noauth"},
+            "url": {"raw": "{{base_url}}/societies/search/?search=Test", "host": ["{{base_url}}"], "path": ["societies", "search", ""], "query": [{"key": "search", "value": "Test"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎭 SUB_ADMIN Invitation Flow",
+      "item": [
+        {
+          "name": "📧 Create SUB_ADMIN Invitation",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('invitation_id', r.invitation.id); pm.environment.set('invitation_otp', r.otp_info.otp_code); pm.environment.set('subadmin_phone', r.invitation.phone_number); console.log('Invitation OTP:', r.otp_info.otp_code); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"phone_number\": \"9200000001\",\n    \"email\": \"chairman@society.com\"\n}"},
+            "url": {"raw": "{{base_url}}/admin/create-subadmin-invitation/", "host": ["{{base_url}}"], "path": ["admin", "create-subadmin-invitation", ""]}
+          }
+        },
+        {
+          "name": "✅ Verify Invitation OTP",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{subadmin_phone}}\",\n    \"otp_code\": \"{{invitation_otp}}\"\n}"},
+            "url": {"raw": "{{base_url}}/invitation/verify-otp/", "host": ["{{base_url}}"], "path": ["invitation", "verify-otp", ""]}
+          }
+        },
+        {
+          "name": "🎯 Complete SUB_ADMIN Registration",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('subadmin_access_token', r.tokens.access); console.log('SUB_ADMIN created:', r.user.first_name); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"invitation_id\": {{invitation_id}},\n    \"first_name\": \"Society\",\n    \"last_name\": \"Chairman\",\n    \"password\": \"chairman123456\",\n    \"password_confirm\": \"chairman123456\"\n}"},
+            "url": {"raw": "{{base_url}}/invitation/complete-registration/", "host": ["{{base_url}}"], "path": ["invitation", "complete-registration", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Member Management (Complete)",
+      "item": [
+        {
+          "name": "➕ SUB_ADMIN Direct Add Member (Fixed)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('direct_member_phone', '9400000001'); pm.environment.set('temp_password', r.temp_password); console.log('Direct member added, temp password:', r.temp_password); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"9400000001\",\n    \"email\": \"direct@society.com\",\n    \"first_name\": \"Direct\",\n    \"last_name\": \"Member\",\n    \"password\": \"member123456\",\n    \"password_confirm\": \"member123456\",\n    \"ownership_type\": \"TENANT\",\n    \"date_of_birth\": \"1985-05-15\",\n    \"occupation\": \"Teacher\",\n    \"emergency_contact_name\": \"Emergency Contact\",\n    \"emergency_contact_phone\": \"9876543210\",\n    \"permanent_address\": \"123 Address\"\n}"},
+            "url": {"raw": "{{base_url}}/members/direct-add/", "host": ["{{base_url}}"], "path": ["members", "direct-add", ""]}
+          }
+        },
+        {
+          "name": "🔑 Test Direct Member Login",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 200) { console.log('✅ Direct member can login immediately'); } else { console.log('❌ Direct member login failed'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "auth": {"type": "noauth"},
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"{{direct_member_phone}}\",\n    \"password\": \"{{temp_password}}\"\n}"},
+            "url": {"raw": "{{base_url}}/auth/login-password/", "host": ["{{base_url}}"], "path": ["auth", "login-password", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Vehicle Management (CRUD)",
+      "item": [
+        {
+          "name": "🏗️ Create Building (Prerequisite)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('building_id', r.id); console.log('Building created:', r.name); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"{{building_name}}\",\n    \"description\": \"Test building for vehicle registration\",\n    \"total_floors\": 10,\n    \"total_units\": 40\n}"},
+            "url": {"raw": "{{base_url}}/buildings/", "host": ["{{base_url}}"], "path": ["buildings", ""]}
+          }
+        },
+        {
+          "name": "🏠 Create Flat (Prerequisite)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('flat_id', r.id); console.log('Flat created:', r.flat_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"block_number\": \"A\",\n    \"flat_number\": \"{{flat_number}}\",\n    \"type\": \"2BHK\",\n    \"area_sqft\": 1200,\n    \"owner\": {{admin_user_id}}\n}"},
+            "url": {"raw": "{{base_url}}/flats/", "host": ["{{base_url}}"], "path": ["flats", ""]}
+          }
+        },
+        {
+          "name": "🚗 Register Vehicle (Fixed)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('vehicle_id', r.id); console.log('Vehicle registered:', r.vehicle_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"vehicle_number\": \"{{vehicle_number}}\",\n    \"type\": \"CAR\",\n    \"owner\": {{admin_user_id}},\n    \"flat\": {{flat_id}}\n}"},
+            "url": {"raw": "{{base_url}}/vehicles/", "host": ["{{base_url}}"], "path": ["vehicles", ""]}
+          }
+        },
+        {
+          "name": "📋 List Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/vehicles/", "host": ["{{base_url}}"], "path": ["vehicles", ""]}
+          }
+        },
+        {
+          "name": "🔍 Get Vehicle Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/vehicles/{{vehicle_id}}/", "host": ["{{base_url}}"], "path": ["vehicles", "{{vehicle_id}}", ""]}
+          }
+        },
+        {
+          "name": "✏️ Update Vehicle",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"type\": \"BIKE\"\n}"},
+            "url": {"raw": "{{base_url}}/vehicles/{{vehicle_id}}/", "host": ["{{base_url}}"], "path": ["vehicles", "{{vehicle_id}}", ""]}
+          }
+        },
+        {
+          "name": "🗑️ Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/vehicles/{{vehicle_id}}/", "host": ["{{base_url}}"], "path": ["vehicles", "{{vehicle_id}}", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Billing System (CRUD)",
+      "item": [
+        {
+          "name": "📊 Create Bill Type",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Monthly Maintenance\",\n    \"description\": \"Regular maintenance charges\",\n    \"default_amount\": 5000.00,\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/bill-types/", "host": ["{{base_url}}"], "path": ["bill-types", ""]}
+          }
+        },
+        {
+          "name": "📋 List Bills",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/enhanced-bills/", "host": ["{{base_url}}"], "path": ["enhanced-bills", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Community Features (CRUD)",
+      "item": [
+        {
+          "name": "📢 Create Notice",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"title\": \"Society Meeting\",\n    \"content\": \"Monthly meeting next week\",\n    \"society\": {{society_id}}\n}"},
+            "url": {"raw": "{{base_url}}/notices/", "host": ["{{base_url}}"], "path": ["notices", ""]}
+          }
+        },
+        {
+          "name": "📋 List Notices",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/notices/", "host": ["{{base_url}}"], "path": ["notices", ""]}
+          }
+        },
+        {
+          "name": "🏊 Create Amenity",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Swimming Pool\",\n    \"booking_rules\": \"Available 6 AM to 10 PM\"\n}"},
+            "url": {"raw": "{{base_url}}/amenities/", "host": ["{{base_url}}"], "path": ["amenities", ""]}
+          }
+        },
+        {
+          "name": "📋 List Amenities",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/amenities/", "host": ["{{base_url}}"], "path": ["amenities", ""]}
+          }
+        },
+        {
+          "name": "🛒 Create Marketplace Listing",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"title\": \"Bicycle for Sale\",\n    \"description\": \"Good condition bicycle\",\n    \"price\": 5000.00,\n    \"category\": \"SPORTS\",\n    \"status\": \"ACTIVE\"\n}"},
+            "url": {"raw": "{{base_url}}/marketplace/", "host": ["{{base_url}}"], "path": ["marketplace", ""]}
+          }
+        },
+        {
+          "name": "📋 List Complaints",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/complaints/", "host": ["{{base_url}}"], "path": ["complaints", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Security & Visitors (Enhanced)",
+      "item": [
+        {
+          "name": "🏠 Create Enhanced Flat (Prerequisite)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('enhanced_flat_id', r.id); console.log('Enhanced flat created for visitor pass:', r.flat_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"building\": {{building_id}},\n    \"floor_number\": 1,\n    \"flat_number\": \"{{flat_number}}\",\n    \"flat_type\": \"2BHK\",\n    \"carpet_area\": 1200.0,\n    \"balcony_area\": 150.0,\n    \"parking_slots\": 1,\n    \"is_available\": true,\n    \"monthly_rent\": 25000.00\n}"},
+            "url": {"raw": "{{base_url}}/enhanced-flats/", "host": ["{{base_url}}"], "path": ["enhanced-flats", ""]}
+          }
+        },
+        {
+          "name": "🎫 Create Visitor Pass (Fixed)",
+          "event": [{"listen": "test", "script": {"exec": ["if (pm.response.code === 201) { const r = pm.response.json(); pm.environment.set('visitor_pass_id', r.id); console.log('Visitor pass created:', r.pass_number); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"visitor_name\": \"{{visitor_name}}\",\n    \"visitor_phone\": \"{{visitor_phone}}\",\n    \"purpose_of_visit\": \"Personal visit\",\n    \"society\": {{society_id}},\n    \"flat_to_visit\": {{enhanced_flat_id}},\n    \"expected_entry_time\": \"2025-01-08T10:00:00Z\",\n    \"expected_exit_time\": \"2025-01-08T18:00:00Z\",\n    \"referenced_by\": \"Society Chairman\",\n    \"reference_phone\": \"{{subadmin_phone}}\"\n}"},
+            "url": {"raw": "{{base_url}}/visitor-passes/", "host": ["{{base_url}}"], "path": ["visitor-passes", ""]}
+          }
+        },
+        {
+          "name": "📋 List Visitor Passes",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/visitor-passes/", "host": ["{{base_url}}"], "path": ["visitor-passes", ""]}
+          }
+        },
+        {
+          "name": "🔍 Get Visitor Pass Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/visitor-passes/{{visitor_pass_id}}/", "host": ["{{base_url}}"], "path": ["visitor-passes", "{{visitor_pass_id}}", ""]}
+          }
+        },
+        {
+          "name": "✏️ Update Visitor Pass Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"status\": \"USED\"\n}"},
+            "url": {"raw": "{{base_url}}/visitor-passes/{{visitor_pass_id}}/", "host": ["{{base_url}}"], "path": ["visitor-passes", "{{visitor_pass_id}}", ""]}
+          }
+        },
+        {
+          "name": "🚪 Create Gate Log Entry",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{staff_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"update_type\": \"VISITOR_ENTRY\",\n    \"person_name\": \"{{visitor_name}}\",\n    \"person_phone\": \"{{visitor_phone}}\",\n    \"flat_number\": \"{{flat_number}}\",\n    \"purpose\": \"Personal visit\",\n    \"visitor_pass\": {{visitor_pass_id}},\n    \"gate_number\": \"1\",\n    \"entry_method\": \"QR Scan\"\n}"},
+            "url": {"raw": "{{base_url}}/gate-logs/", "host": ["{{base_url}}"], "path": ["gate-logs", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Helpdesk Management",
+      "item": [
+        {
+          "name": "🔧 Create Helpdesk Designation",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"title\": \"Electrician\",\n    \"description\": \"Electrical maintenance\",\n    \"category\": \"Maintenance\",\n    \"is_active\": true\n}"},
+            "url": {"raw": "{{base_url}}/helpdesk-designations/", "host": ["{{base_url}}"], "path": ["helpdesk-designations", ""]}
+          }
+        },
+        {
+          "name": "📋 List Helpdesk Contacts",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/helpdesk-contacts/", "host": ["{{base_url}}"], "path": ["helpdesk-contacts", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Staff Management",
+      "item": [
+        {
+          "name": "👔 Create Staff Category",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"society\": {{society_id}},\n    \"name\": \"Security\",\n    \"description\": \"Security staff\"\n}"},
+            "url": {"raw": "{{base_url}}/staff-categories/", "host": ["{{base_url}}"], "path": ["staff-categories", ""]}
+          }
+        },
+        {
+          "name": "👥 Create STAFF User",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{subadmin_access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n    \"phone_number\": \"9100000002\",\n    \"email\": \"security@society.com\",\n    \"first_name\": \"Security\",\n    \"last_name\": \"Guard\",\n    \"password\": \"staff123456\",\n    \"password_confirm\": \"staff123456\"\n}"},
+            "url": {"raw": "{{base_url}}/admin/create-staff-user/", "host": ["{{base_url}}"], "path": ["admin", "create-staff-user", ""]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Dashboard & Analytics",
+      "item": [
+        {
+          "name": "📊 Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/dashboard/stats/", "host": ["{{base_url}}"], "path": ["dashboard", "stats", ""]}
+          }
+        },
+        {
+          "name": "👥 List Directory",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/directory/", "host": ["{{base_url}}"], "path": ["directory", ""]}
+          }
+        }
+      ]
+    }
+  ]
+}

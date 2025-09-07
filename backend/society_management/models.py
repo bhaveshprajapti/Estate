@@ -298,6 +298,9 @@ class Flat(models.Model):
     type = models.CharField(max_length=50, help_text='e.g., "2BHK", "3BHK"')
     area_sqft = models.IntegerField(null=True, blank=True)
     
+    # Link to enhanced flat for detailed information
+    enhanced_flat = models.OneToOneField('EnhancedFlat', on_delete=models.SET_NULL, null=True, blank=True, related_name='legacy_flat')
+    
     class Meta:
         unique_together = ['society', 'block_number', 'flat_number']
     
@@ -785,3 +788,562 @@ class BulkUserOperation(models.Model):
     
     def __str__(self):
         return f"{self.operation_type} - {self.society.name} ({self.status})"
+
+
+# ===== ENHANCED MODELS FOR COMPREHENSIVE SOCIETY MANAGEMENT =====
+
+# Building and Flat Management
+class Building(models.Model):
+    """Represents a building within a society"""
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='buildings')
+    name = models.CharField(max_length=100, help_text='e.g., "Block A", "Tower 1"')
+    description = models.TextField(blank=True)
+    total_floors = models.IntegerField()
+    flats_per_floor = models.IntegerField()
+    amenities = models.TextField(blank=True, help_text='Building-specific amenities')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['society', 'name']
+    
+    def __str__(self):
+        return f"{self.society.name} - {self.name}"
+
+
+class EnhancedFlat(models.Model):
+    """Enhanced flat model with more details"""
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='enhanced_flats')
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name='flats')
+    floor_number = models.IntegerField()
+    flat_number = models.CharField(max_length=20)
+    flat_type = models.CharField(max_length=50, help_text='e.g., "1BHK", "2BHK", "3BHK"')
+    carpet_area = models.FloatField(help_text='Area in sq ft')
+    balcony_area = models.FloatField(default=0.0, help_text='Balcony area in sq ft')  # type: ignore
+    parking_slots = models.IntegerField(default=0)  # type: ignore
+    is_available = models.BooleanField(default=True)  # type: ignore
+    monthly_rent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    possession_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['building', 'floor_number', 'flat_number']
+    
+    def __str__(self):
+        return f"{self.building.name} - Floor {self.floor_number} - {self.flat_number}"
+
+
+# Member Registration and Management
+class MemberRegistrationRequest(models.Model):
+    """Handles self-registration requests from prospective members"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Approval'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+        ('EXPIRED', 'Expired'),
+    ]
+    
+    OWNERSHIP_TYPE_CHOICES = [
+        ('OWNER', 'Owner'),
+        ('TENANT', 'Tenant'),
+    ]
+    
+    # Personal Information
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    phone_number = models.CharField(max_length=20)
+    email = models.EmailField()
+    date_of_birth = models.DateField(null=True, blank=True)
+    occupation = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Property Information
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='member_requests')
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name='member_requests')
+    flat = models.ForeignKey(EnhancedFlat, on_delete=models.CASCADE, related_name='member_requests')
+    ownership_type = models.CharField(max_length=20, choices=OWNERSHIP_TYPE_CHOICES)
+    
+    # Additional Information
+    emergency_contact_name = models.CharField(max_length=100)
+    emergency_contact_phone = models.CharField(max_length=20)
+    permanent_address = models.TextField()
+    id_proof_number = models.CharField(max_length=50, help_text='Aadhaar/PAN/Passport number')
+    
+    # Request Management
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_requests')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_comments = models.TextField(blank=True)
+    documents_uploaded = models.JSONField(default=list, help_text='List of document URLs')
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.society.name} ({self.status})"
+    
+    def approve_request(self, reviewer):
+        """Approve the registration request and create user"""
+        if self.status == 'PENDING':
+            # Create user account
+            user = User.objects.create_user(
+                phone_number=self.phone_number,
+                email=self.email,
+                first_name=self.first_name,
+                last_name=self.last_name,
+                role='MEMBER',
+                society=self.society,
+                ownership_type=self.ownership_type,
+                date_of_birth=self.date_of_birth,
+                occupation=self.occupation,
+                emergency_contact_name=self.emergency_contact_name,
+                emergency_contact_phone=self.emergency_contact_phone,
+                permanent_address=self.permanent_address,
+                is_approved=True,
+                approved_by=reviewer,
+                approval_date=timezone.now()
+            )
+            
+            # Update request status
+            self.status = 'APPROVED'
+            self.reviewed_by = reviewer
+            self.reviewed_at = timezone.now()
+            self.save()
+            
+            # Assign flat
+            flat_instance = self.flat
+            if self.ownership_type == 'OWNER':
+                flat_instance.owner = user  # type: ignore
+            else:
+                flat_instance.tenant = user  # type: ignore
+            flat_instance.is_available = False  # type: ignore
+            flat_instance.save()  # type: ignore
+            
+            return user
+        return None
+
+
+class MemberInvitation(models.Model):
+    """SUB_ADMIN can invite new members directly"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('ACCEPTED', 'Accepted'),
+        ('EXPIRED', 'Expired'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='member_invitations_sent')
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='member_invitations')
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name='member_invitations')
+    flat = models.ForeignKey(EnhancedFlat, on_delete=models.CASCADE, related_name='member_invitations')
+    
+    # Invitee Information
+    phone_number = models.CharField(max_length=20)
+    email = models.EmailField()
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    ownership_type = models.CharField(max_length=20, choices=MemberRegistrationRequest.OWNERSHIP_TYPE_CHOICES)
+    
+    # Invitation Management
+    invitation_token = models.UUIDField(default=uuid.uuid4, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Invitation for {self.first_name} {self.last_name} to {self.society.name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+
+# Staff Management
+class StaffInvitation(models.Model):
+    """SUB_ADMIN can invite staff members"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('ACCEPTED', 'Accepted'),
+        ('EXPIRED', 'Expired'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staff_invitations_sent')
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='staff_invitations')
+    category = models.ForeignKey(StaffCategory, on_delete=models.CASCADE, related_name='staff_invitations')
+    
+    # Invitee Information
+    phone_number = models.CharField(max_length=20)
+    email = models.EmailField()
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    
+    # Staff Details
+    staff_id = models.CharField(max_length=50)
+    designation = models.CharField(max_length=100)
+    salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    shift_start_time = models.TimeField()
+    shift_end_time = models.TimeField()
+    
+    # Invitation Management
+    invitation_token = models.UUIDField(default=uuid.uuid4, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Staff invitation for {self.first_name} {self.last_name} - {self.designation}"
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+
+# Society Profile Management
+class SocietyProfile(models.Model):
+    """Extended society profile with comprehensive information"""
+    society = models.OneToOneField(Society, on_delete=models.CASCADE, related_name='profile')
+    
+    # Basic Information
+    established_year = models.IntegerField(null=True, blank=True)
+    total_units = models.IntegerField(default=0)  # type: ignore
+    society_logo = models.CharField(max_length=255, null=True, blank=True, help_text='URL/path to logo')
+    society_type = models.CharField(max_length=50, default='Residential')
+    
+    # Amenities
+    amenities_list = models.JSONField(default=list, help_text='List of society amenities')
+    
+    # Rules and Regulations
+    society_rules = models.TextField(blank=True)
+    visitor_policy = models.TextField(blank=True)
+    pet_policy = models.TextField(blank=True)
+    parking_rules = models.TextField(blank=True)
+    noise_policy = models.TextField(blank=True)
+    
+    # Contact Information
+    office_timings = models.CharField(max_length=100, blank=True)
+    emergency_contact = models.CharField(max_length=20, blank=True)
+    website = models.URLField(blank=True)
+    social_media_links = models.JSONField(default=dict, help_text='Social media links')
+    
+    # Legal Information
+    registration_authority = models.CharField(max_length=100, blank=True)
+    gst_number = models.CharField(max_length=15, blank=True)
+    pan_number = models.CharField(max_length=10, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Profile for {self.society.name}"
+
+
+# Helpdesk Management
+class HelpdeskDesignation(models.Model):
+    """Designations for helpdesk contacts"""
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='helpdesk_designations')
+    title = models.CharField(max_length=100, help_text='e.g., Electrician, Plumber, Manager')
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=50, help_text='e.g., Maintenance, Emergency, Administrative')
+    is_active = models.BooleanField(default=True)  # type: ignore
+    
+    class Meta:
+        unique_together = ['society', 'title']
+    
+    def __str__(self):
+        return f"{self.society.name} - {self.title}"
+
+
+class HelpdeskContact(models.Model):
+    """Helpdesk contacts for society services"""
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='helpdesk_contacts')
+    designation = models.ForeignKey(HelpdeskDesignation, on_delete=models.CASCADE, related_name='contacts')
+    
+    # Contact Information
+    name = models.CharField(max_length=100)
+    primary_phone = models.CharField(max_length=20)
+    secondary_phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.TextField(blank=True)
+    
+    # Additional Information
+    photo = models.CharField(max_length=255, null=True, blank=True, help_text='URL/path to photo')
+    availability = models.CharField(max_length=100, blank=True, help_text='Available hours')
+    service_charges = models.TextField(blank=True)
+    rating = models.FloatField(default=0.0)  # type: ignore
+    
+    # Status
+    is_active = models.BooleanField(default=True)  # type: ignore
+    is_verified = models.BooleanField(default=False)  # type: ignore
+    added_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='added_helpdesk_contacts')
+    added_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} - {self.designation.title}"  # type: ignore
+
+
+# Enhanced Billing System
+class BillType(models.Model):
+    """Types of bills that can be created"""
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='bill_types')
+    name = models.CharField(max_length=100, help_text='e.g., Maintenance, Water, Electricity')
+    description = models.TextField(blank=True)
+    is_recurring = models.BooleanField(default=False)  # type: ignore
+    recurrence_period = models.CharField(max_length=20, null=True, blank=True, help_text='monthly, quarterly, yearly')
+    is_splitable = models.BooleanField(default=False)  # type: ignore
+    default_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(default=True)  # type: ignore
+    
+    class Meta:
+        unique_together = ['society', 'name']
+    
+    def __str__(self):
+        return f"{self.society.name} - {self.name}"
+
+
+class EnhancedBill(models.Model):
+    """Enhanced billing system with attachments and recurring bills"""
+    
+    STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('OVERDUE', 'Overdue'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    PAYMENT_MODE_CHOICES = [
+        ('ONLINE', 'Online'),
+        ('CASH', 'Cash'),
+        ('CHEQUE', 'Cheque'),
+        ('BANK_TRANSFER', 'Bank Transfer'),
+        ('UPI', 'UPI'),
+    ]
+    
+    # Basic Information
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='enhanced_bills')
+    bill_type = models.ForeignKey(BillType, on_delete=models.CASCADE, related_name='bills')
+    bill_number = models.CharField(max_length=50, unique=True)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    
+    # Financial Information
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Payment Information
+    payment_details = models.JSONField(default=dict, help_text='Bank account info, UPI ID, etc.')
+    due_date = models.DateField()
+    late_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    
+    # Attachments
+    attachments = models.JSONField(default=list, help_text='List of attachment URLs')
+    
+    # Recurring Information
+    is_recurring = models.BooleanField(default=False)  # type: ignore
+    parent_bill = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='recurring_bills')
+    next_due_date = models.DateField(null=True, blank=True)
+    
+    # Status and Tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_bills')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Payment Tracking
+    payment_mode = models.CharField(max_length=20, choices=PAYMENT_MODE_CHOICES, null=True, blank=True)
+    transaction_id = models.CharField(max_length=255, null=True, blank=True)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_date = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='paid_bills')
+    
+    def __str__(self):
+        return f"{self.bill_number} - {self.title}"
+    
+    def save(self, *args, **kwargs):
+        if not self.bill_number:
+            # Generate unique bill number
+            prefix = self.society.name[:3].upper()
+            count = EnhancedBill.objects.filter(society=self.society).count() + 1  # type: ignore
+            self.bill_number = f"{prefix}{count:06d}"
+        
+        # Calculate total amount
+        self.total_amount = self.amount + self.tax_amount + self.late_fee  # type: ignore
+        
+        super().save(*args, **kwargs)
+
+
+class BillDistribution(models.Model):
+    """For splitable bills - distribution among flats"""
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('OVERDUE', 'Overdue'),
+    ]
+    
+    bill = models.ForeignKey(EnhancedBill, on_delete=models.CASCADE, related_name='distributions')
+    flat = models.ForeignKey(EnhancedFlat, on_delete=models.CASCADE, related_name='bill_distributions')
+    allocated_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_date = models.DateTimeField(null=True, blank=True)
+    payment_mode = models.CharField(max_length=20, choices=EnhancedBill.PAYMENT_MODE_CHOICES, null=True, blank=True)
+    transaction_id = models.CharField(max_length=255, null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['bill', 'flat']
+    
+    def __str__(self):
+        return f"{self.bill.title} - {self.flat}"  # type: ignore
+
+
+# Security and Gate Management
+class VisitorPass(models.Model):
+    """Digital visitor passes created by SUB_ADMIN"""
+    
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('USED', 'Used'),
+        ('EXPIRED', 'Expired'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    # Pass Information
+    pass_number = models.CharField(max_length=20, unique=True)
+    qr_code = models.CharField(max_length=255, null=True, blank=True, help_text='QR code data')
+    
+    # Visitor Information
+    visitor_name = models.CharField(max_length=255)
+    visitor_phone = models.CharField(max_length=20)
+    visitor_id_proof = models.CharField(max_length=100, blank=True)
+    purpose_of_visit = models.CharField(max_length=255)
+    
+    # Visit Details
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='visitor_passes')
+    flat_to_visit = models.ForeignKey(EnhancedFlat, on_delete=models.CASCADE, related_name='visitor_passes')
+    expected_entry_time = models.DateTimeField()
+    expected_exit_time = models.DateTimeField(null=True, blank=True)
+    
+    # Reference Information
+    referenced_by = models.CharField(max_length=255, help_text='Name of person who referred')
+    reference_phone = models.CharField(max_length=20, blank=True)
+    
+    # Status and Tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_visitor_passes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Actual Visit Tracking
+    actual_entry_time = models.DateTimeField(null=True, blank=True)
+    actual_exit_time = models.DateTimeField(null=True, blank=True)
+    gate_entry_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_in_visitors')
+    gate_exit_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_out_visitors')
+    
+    def __str__(self):
+        return f"{self.pass_number} - {self.visitor_name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.pass_number:
+            # Generate unique pass number
+            date_part = timezone.now().strftime('%Y%m%d')
+            count = VisitorPass.objects.filter(created_at__date=timezone.now().date()).count() + 1  # type: ignore
+            self.pass_number = f"VP{date_part}{count:04d}"
+        super().save(*args, **kwargs)
+
+
+class GateUpdateLog(models.Model):
+    """Real-time log of all gate updates by security staff"""
+    
+    UPDATE_TYPE_CHOICES = [
+        ('VISITOR_ENTRY', 'Visitor Entry'),
+        ('VISITOR_EXIT', 'Visitor Exit'),
+        ('VEHICLE_ENTRY', 'Vehicle Entry'),
+        ('VEHICLE_EXIT', 'Vehicle Exit'),
+        ('STAFF_ENTRY', 'Staff Entry'),
+        ('STAFF_EXIT', 'Staff Exit'),
+        ('DENIED_ENTRY', 'Denied Entry'),
+        ('EMERGENCY', 'Emergency'),
+        ('MAINTENANCE', 'Maintenance'),
+    ]
+    
+    society = models.ForeignKey(Society, on_delete=models.CASCADE, related_name='gate_logs')
+    update_type = models.CharField(max_length=20, choices=UPDATE_TYPE_CHOICES)
+    
+    # Entry Information
+    person_name = models.CharField(max_length=255, blank=True)
+    person_phone = models.CharField(max_length=20, blank=True)
+    id_proof_number = models.CharField(max_length=100, blank=True)
+    
+    # Vehicle Information (if applicable)
+    vehicle_number = models.CharField(max_length=20, blank=True)
+    vehicle_type = models.CharField(max_length=50, blank=True)
+    
+    # Visit Information
+    flat_number = models.CharField(max_length=20, blank=True)
+    purpose = models.CharField(max_length=255, blank=True)
+    visitor_pass = models.ForeignKey(VisitorPass, on_delete=models.SET_NULL, null=True, blank=True, related_name='gate_logs')
+    
+    # Gate Information
+    gate_number = models.CharField(max_length=10, default='1')
+    entry_method = models.CharField(max_length=50, blank=True, help_text='Manual, QR Scan, etc.')
+    
+    # Staff Information
+    logged_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gate_logs')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+    
+    # Status
+    is_approved = models.BooleanField(default=True)  # type: ignore
+    approval_required = models.BooleanField(default=False)  # type: ignore
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_gate_logs')
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.update_type} - {self.person_name or 'Unknown'} at {self.timestamp}"
+
+
+# Member and Staff Directory
+class DirectoryEntry(models.Model):
+    """Directory entry for members and staff with search capabilities"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='directory_entry')
+    
+    # Display Information
+    display_name = models.CharField(max_length=255)
+    designation = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    
+    # Contact Visibility
+    show_phone = models.BooleanField(default=True)  # type: ignore
+    show_email = models.BooleanField(default=True)  # type: ignore
+    show_address = models.BooleanField(default=False)  # type: ignore
+    
+    # Additional Information
+    interests = models.TextField(blank=True)
+    skills = models.TextField(blank=True)
+    bio = models.TextField(blank=True)
+    
+    # Social Links
+    linkedin_url = models.URLField(blank=True)
+    facebook_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
+    
+    # Status
+    is_visible = models.BooleanField(default=True)  # type: ignore
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Directory: {self.display_name}"
+    
+    def get_flat_numbers(self):
+        """Get list of flat numbers associated with this user"""
+        owned_flats = EnhancedFlat.objects.filter(owner=self.user).values_list('flat_number', flat=True)  # type: ignore
+        rented_flats = EnhancedFlat.objects.filter(tenant=self.user).values_list('flat_number', flat=True)  # type: ignore
+        return list(set(list(owned_flats) + list(rented_flats)))

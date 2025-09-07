@@ -1,6 +1,7 @@
 from rest_framework import status, generics, permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
+from rest_framework import status, permissions, generics, viewsets
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
@@ -14,11 +15,20 @@ from .serializers import *
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register(request):
-    """User registration endpoint"""
+    """User registration endpoint - SECURITY: Only creates MEMBER accounts"""
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        refresh = RefreshToken.for_user(user)  # type: ignore
+        
+        # Don't generate tokens for unapproved users
+        if user.is_approved:
+            refresh = RefreshToken.for_user(user)  # type: ignore
+            tokens = {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
+        else:
+            tokens = None
         
         # Generate registration OTP for testing purposes
         otp = OTP.create_otp(
@@ -28,19 +38,66 @@ def register(request):
             email=user.email  # type: ignore
         )
         
-        return Response({
-            'message': 'User registered successfully',
+        response_data = {
+            'message': 'User registered successfully. Account requires admin approval.' if not user.is_approved else 'User registered successfully',  # type: ignore
             'user': UserProfileSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
             'otp_info': {
                 'otp_code': otp.otp_code,  # For testing only
                 'purpose': 'REGISTRATION',
                 'expires_at': otp.expires_at,
                 'note': 'OTP shown for testing purposes only'
             }
+        }
+        
+        if tokens:
+            response_data['tokens'] = tokens
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# SECURE ADMIN CREATION - Only for superusers
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_admin_user(request):
+    """Create ADMIN user - Only superusers can access this endpoint"""
+    # SECURITY: Only superusers can create ADMIN accounts
+    if not request.user.is_superuser:
+        return Response({
+            'error': 'FORBIDDEN: Only superusers can create ADMIN accounts',
+            'details': 'This is a security-restricted endpoint'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    serializer = AdminCreationSerializer(data=request.data)
+    if serializer.is_valid():
+        admin_user = serializer.save()
+        
+        return Response({
+            'message': 'ADMIN user created successfully',
+            'user': UserProfileSerializer(admin_user).data,
+            'security_note': 'ADMIN account created with full system privileges'
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# SECURE STAFF CREATION - Only for SUB_ADMIN and ADMIN
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_staff_user(request):
+    """Create STAFF user - Only SUB_ADMIN and ADMIN can access this endpoint"""
+    # SECURITY: Only SUB_ADMIN and ADMIN can create STAFF accounts
+    if request.user.role not in ['SUB_ADMIN', 'ADMIN']:
+        return Response({
+            'error': 'FORBIDDEN: Only SUB_ADMIN and ADMIN can create STAFF accounts'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    serializer = StaffUserCreationSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        staff_user = serializer.save()
+        
+        return Response({
+            'message': 'STAFF user created successfully',
+            'user': UserProfileSerializer(staff_user).data
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1082,3 +1139,327 @@ def user_dashboard_stats(request):
             stats = {'error': 'Staff profile not found'}
     
     return Response(stats)
+
+
+# ===== ENHANCED VIEWS FOR COMPREHENSIVE SOCIETY MANAGEMENT =====
+
+# Building and Flat Management Views
+class BuildingViewSet(viewsets.ModelViewSet):
+    """ViewSet for Building management"""
+    queryset = Building.objects.all()  # type: ignore
+    serializer_class = BuildingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return Building.objects.filter(society=user.society)  # type: ignore
+        return Building.objects.none()  # type: ignore
+
+
+class EnhancedFlatViewSet(viewsets.ModelViewSet):
+    """ViewSet for Enhanced Flat management"""
+    queryset = EnhancedFlat.objects.all()  # type: ignore
+    serializer_class = EnhancedFlatSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return EnhancedFlat.objects.filter(society=user.society)  # type: ignore
+        return EnhancedFlat.objects.none()  # type: ignore
+
+
+# Member Registration Views
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def search_societies(request):
+    """Search societies by address, city, or name"""
+    search_query = request.GET.get('search', '')
+    if not search_query:
+        return Response({'error': 'Search query is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    societies = Society.objects.filter(  # type: ignore
+        models.Q(name__icontains=search_query) |  # type: ignore
+        models.Q(address__icontains=search_query) |  # type: ignore
+        models.Q(city__icontains=search_query)  # type: ignore
+    )[:10]  # type: ignore
+    
+    serializer = SocietyListSerializer(societies, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def self_register_member(request):
+    """Self-registration for prospective members"""
+    serializer = MemberRegistrationRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        registration_request = serializer.save()
+        return Response({
+            'message': 'Registration request submitted successfully',
+            'request_id': registration_request.id,  # type: ignore
+            'status': 'PENDING'
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def direct_add_member(request):
+    """SUB_ADMIN directly adds member (no approval needed)"""
+    # Check if user is SUB_ADMIN or ADMIN
+    if request.user.role not in ['SUB_ADMIN', 'ADMIN']:
+        return Response({
+            'error': 'Only SUB_ADMIN and ADMIN can directly add members'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    serializer = DirectMemberAdditionSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        member = serializer.save()
+        
+        # Generate temporary password for the response
+        phone_number = str(member.phone_number)  # type: ignore
+        temp_password: str = f"temp_{phone_number[-4:]}"
+        # Update password to the temporary one
+        member.set_password(temp_password)  # type: ignore
+        member.save()  # type: ignore
+        
+        return Response({
+            'message': 'Member added successfully',
+            'user': UserProfileSerializer(member).data,
+            'temp_password': temp_password,
+            'note': 'Temporary password provided. User should change it on first login.'
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MemberRegistrationRequestViewSet(viewsets.ModelViewSet):
+    """ViewSet for member registration requests"""
+    queryset = MemberRegistrationRequest.objects.all()  # type: ignore
+    serializer_class = MemberRegistrationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return MemberRegistrationRequest.objects.filter(society=user.society)  # type: ignore
+        return MemberRegistrationRequest.objects.none()  # type: ignore
+    
+    @action(detail=True, methods=['post'])
+    def approve_request(self, request, pk=None):
+        """Approve member registration request"""
+        registration_request = self.get_object()
+        
+        if registration_request.status != 'PENDING':
+            return Response({'error': 'Request is not pending'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Create user account
+            user = User.objects.create_user(
+                phone_number=registration_request.phone_number,
+                email=registration_request.email,
+                first_name=registration_request.first_name,
+                last_name=registration_request.last_name,
+                role='MEMBER',
+                society=registration_request.society,
+                ownership_type=registration_request.ownership_type,
+                date_of_birth=registration_request.date_of_birth,
+                occupation=registration_request.occupation,
+                emergency_contact_name=registration_request.emergency_contact_name,
+                emergency_contact_phone=registration_request.emergency_contact_phone,
+                permanent_address=registration_request.permanent_address,
+                is_approved=True,
+                approved_by=request.user,
+                approval_date=timezone.now()
+            )
+            
+            # Set temporary password
+            temp_password = f"temp_{user.phone_number[-4:]}"
+            user.set_password(temp_password)
+            user.save()
+            
+            # Update flat assignment
+            flat = registration_request.flat
+            if registration_request.ownership_type == 'OWNER':
+                flat.owner = user  # type: ignore
+            else:
+                flat.tenant = user  # type: ignore
+            flat.is_available = False  # type: ignore
+            flat.save()  # type: ignore
+            
+            # Update request status
+            registration_request.status = 'APPROVED'
+            registration_request.reviewed_by = request.user
+            registration_request.reviewed_at = timezone.now()
+            registration_request.review_comments = request.data.get('comments', '')
+            registration_request.save()
+            
+            # Create directory entry
+            DirectoryEntry.objects.create(
+                user=user,
+                flat_number=flat.flat_number,
+                building=flat.building.name,
+                ownership_type=registration_request.ownership_type,
+                emergency_contact=registration_request.emergency_contact_name,
+                emergency_phone=registration_request.emergency_contact_phone
+            )
+            
+            return Response({
+                'message': 'Member registration approved successfully',
+                'user_id': user.id,
+                'temp_password': temp_password,
+                'note': 'Temporary password provided. User should change it on first login.'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def reject_request(self, request, pk=None):
+        """Reject member registration request"""
+        registration_request = self.get_object()
+        
+        if registration_request.status != 'PENDING':
+            return Response({'error': 'Request is not pending'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update request status
+        registration_request.status = 'REJECTED'
+        registration_request.reviewed_by = request.user
+        registration_request.reviewed_at = timezone.now()
+        registration_request.review_comments = request.data.get('comments', 'Request rejected by SUB_ADMIN')
+        registration_request.save()
+        
+        return Response({
+            'message': 'Member registration rejected',
+            'reason': registration_request.review_comments
+        }, status=status.HTTP_200_OK)
+
+
+# Enhanced Billing Views
+class BillTypeViewSet(viewsets.ModelViewSet):
+    """ViewSet for bill types"""
+    queryset = BillType.objects.all()  # type: ignore
+    serializer_class = BillTypeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return BillType.objects.filter(society=user.society)  # type: ignore
+        return BillType.objects.none()  # type: ignore
+
+
+class EnhancedBillViewSet(viewsets.ModelViewSet):
+    """ViewSet for enhanced bills"""
+    queryset = EnhancedBill.objects.all()  # type: ignore
+    serializer_class = EnhancedBillSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return EnhancedBill.objects.filter(society=user.society)  # type: ignore
+        return EnhancedBill.objects.none()  # type: ignore
+
+
+# Security and Gate Management Views
+class VisitorPassViewSet(viewsets.ModelViewSet):
+    """ViewSet for visitor passes"""
+    queryset = VisitorPass.objects.all()  # type: ignore
+    serializer_class = VisitorPassSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['SUB_ADMIN', 'STAFF']:
+            return VisitorPass.objects.filter(society=user.society)  # type: ignore
+        return VisitorPass.objects.none()  # type: ignore
+
+
+class GateUpdateLogViewSet(viewsets.ModelViewSet):
+    """ViewSet for gate update logs"""
+    queryset = GateUpdateLog.objects.all()  # type: ignore
+    serializer_class = GateUpdateLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['SUB_ADMIN', 'STAFF']:
+            return GateUpdateLog.objects.filter(society=user.society)  # type: ignore
+        return GateUpdateLog.objects.none()  # type: ignore
+
+
+# Helpdesk Management Views
+class HelpdeskDesignationViewSet(viewsets.ModelViewSet):
+    """ViewSet for helpdesk designations"""
+    queryset = HelpdeskDesignation.objects.all()  # type: ignore
+    serializer_class = HelpdeskDesignationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return HelpdeskDesignation.objects.filter(society=user.society)  # type: ignore
+        return HelpdeskDesignation.objects.none()  # type: ignore
+
+
+class HelpdeskContactViewSet(viewsets.ModelViewSet):
+    """ViewSet for helpdesk contacts"""
+    queryset = HelpdeskContact.objects.all()  # type: ignore
+    serializer_class = HelpdeskContactSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['SUB_ADMIN', 'MEMBER', 'STAFF']:
+            return HelpdeskContact.objects.filter(society=user.society)  # type: ignore
+        return HelpdeskContact.objects.none()  # type: ignore
+
+
+# Directory Management Views
+class DirectoryEntryViewSet(viewsets.ModelViewSet):
+    """ViewSet for directory entries"""
+    queryset = DirectoryEntry.objects.all()  # type: ignore
+    serializer_class = DirectoryEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        return DirectoryEntry.objects.filter(  # type: ignore
+            user__society=user.society,
+            is_visible=True
+        )  # type: ignore
+
+
+# Missing ViewSets that are registered in URLs
+class MemberInvitationViewSet(viewsets.ModelViewSet):
+    """ViewSet for member invitations"""
+    queryset = MemberInvitation.objects.all()  # type: ignore
+    serializer_class = MemberInvitationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class StaffInvitationViewSet(viewsets.ModelViewSet):
+    """ViewSet for staff invitations"""
+    queryset = StaffInvitation.objects.all()  # type: ignore
+    serializer_class = StaffInvitationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class SocietyProfileViewSet(viewsets.ModelViewSet):
+    """ViewSet for society profiles"""
+    queryset = SocietyProfile.objects.all()  # type: ignore
+    serializer_class = SocietyProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class BillDistributionViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for bill distributions"""
+    queryset = BillDistribution.objects.all()  # type: ignore
+    serializer_class = BillDistributionSerializer
+    permission_classes = [permissions.IsAuthenticated]
