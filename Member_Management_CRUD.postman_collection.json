@@ -1,0 +1,638 @@
+{
+  "info": {
+    "name": "👥 Member Management - Complete CRUD Operations",
+    "description": "Complete CRUD operations for member management including registration, approval, and profile management",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Member Registration & Authentication",
+      "item": [
+        {
+          "name": "📝 Self Register Member (Pending Approval)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const r = pm.response.json();",
+                  "    pm.environment.set('member_request_id', r.request_id);",
+                  "    pm.environment.set('pending_member_phone', pm.request.body.raw.match(/\"phone_number\":\\s*\"([^\"]+)\"/)[1]);",
+                  "    console.log('Member registration submitted:', r.request_id);",
+                  "} else {",
+                  "    console.log('Member registration failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{member_phone}}\",\n    \"email\": \"{{member_email}}\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"Member\",\n    \"password\": \"{{member_password}}\",\n    \"password_confirm\": \"{{member_password}}\",\n    \"society\": {{society_id}},\n    \"building\": {{building_id}},\n    \"flat\": {{flat_id}},\n    \"ownership_type\": \"TENANT\",\n    \"date_of_birth\": \"1990-01-01\",\n    \"occupation\": \"Engineer\",\n    \"emergency_contact_name\": \"Emergency Contact\",\n    \"emergency_contact_phone\": \"9876543210\",\n    \"permanent_address\": \"123 Main Street\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/members/self-register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "self-register",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔑 Login Attempt (Should Fail - Pending Approval)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 400) {",
+                  "    console.log('✅ Login blocked - Member needs approval');",
+                  "} else {",
+                  "    console.log('❌ Unexpected response');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{pending_member_phone}}\",\n    \"password\": \"{{member_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-password/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login-password",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "➕ SUB_ADMIN Direct Add Member (Approved Immediately)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const r = pm.response.json();",
+                  "    pm.environment.set('direct_member_phone', '9400000001');",
+                  "    pm.environment.set('temp_password', r.temp_password);",
+                  "    console.log('Direct member added, temp password:', r.temp_password);",
+                  "} else {",
+                  "    console.log('Direct member addition failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"9400000001\",\n    \"email\": \"{{direct_member_email}}\",\n    \"first_name\": \"Direct\",\n    \"last_name\": \"Member\",\n    \"password\": \"member123456\",\n    \"password_confirm\": \"member123456\",\n    \"ownership_type\": \"OWNER\",\n    \"date_of_birth\": \"1985-05-15\",\n    \"occupation\": \"Teacher\",\n    \"emergency_contact_name\": \"Emergency Contact\",\n    \"emergency_contact_phone\": \"9876543210\",\n    \"permanent_address\": \"123 Address\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/members/direct-add/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "direct-add",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔑 Test Direct Member Login (Should Work)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const r = pm.response.json();",
+                  "    pm.environment.set('member_access_token', r.tokens.access);",
+                  "    pm.environment.set('member_user_id', r.user.id);",
+                  "    console.log('✅ Direct member can login immediately');",
+                  "} else {",
+                  "    console.log('❌ Direct member login failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{direct_member_phone}}\",\n    \"password\": \"{{temp_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-password/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login-password",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📋 Member Registration Requests Management (SUB_ADMIN)",
+      "item": [
+        {
+          "name": "📋 List Member Registration Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/member-requests/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "member-requests",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔍 Get Member Registration Request Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/member-requests/{{member_request_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "member-requests",
+                "{{member_request_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Approve Member Registration Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('✅ Member registration approved');",
+                  "} else {",
+                  "    console.log('❌ Member registration approval failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"comments\": \"Approved by SUB_ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/member-requests/{{member_request_id}}/approve_request/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "member-requests",
+                "{{member_request_id}}",
+                "approve_request",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Reject Member Registration Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"action\": \"reject\",\n    \"comments\": \"Application incomplete\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/member-requests/{{member_request_id}}/reject_request/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "member-requests",
+                "{{member_request_id}}",
+                "reject_request",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👥 Member CRUD Operations",
+      "item": [
+        {
+          "name": "📋 List All Members (SUB_ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "is_approved",
+                  "value": "true",
+                  "description": "Filter by approval status"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔍 Get Member Details (SUB_ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/{{member_user_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{{member_user_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔍 Get Own Profile (Member)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/{{member_user_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{{member_user_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "✏️ Update Member Profile (SUB_ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Updated\",\n    \"last_name\": \"Member\",\n    \"email\": \"updated.member@test.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/members/{{member_user_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{{member_user_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "✏️ Update Own Profile (Member)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Self Updated\",\n    \"last_name\": \"Member\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/members/{{member_user_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{{member_user_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🚫 Deactivate Member (SUB_ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('✅ Member deactivated successfully');",
+                  "} else {",
+                  "    console.log('❌ Member deactivation failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subadmin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/{{member_user_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{{member_user_id}}",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📱 Member Authentication",
+      "item": [
+        {
+          "name": "🔑 Login Approved Member",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const r = pm.response.json();",
+                  "    pm.environment.set('member_access_token', r.tokens.access);",
+                  "    pm.environment.set('member_user_id', r.user.id);",
+                  "    console.log('✅ Member login successful');",
+                  "} else {",
+                  "    console.log('❌ Member login failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone_number\": \"{{pending_member_phone}}\",\n    \"password\": \"{{member_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login-password/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login-password",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "📱 Get Member Profile (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "📱 Update Member Profile (Authenticated)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{member_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Updated Profile\",\n    \"last_name\": \"Member\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

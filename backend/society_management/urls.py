@@ -50,6 +50,7 @@ router.register(r'bill-distributions', views.BillDistributionViewSet)
 router.register(r'visitor-passes', views.VisitorPassViewSet)
 router.register(r'gate-logs', views.GateUpdateLogViewSet)
 router.register(r'directory', views.DirectoryEntryViewSet)
+router.register(r'members', views.MemberViewSet)
 
 urlpatterns = [
     # Authentication endpoints

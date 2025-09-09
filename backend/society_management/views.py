@@ -1170,6 +1170,99 @@ class EnhancedFlatViewSet(viewsets.ModelViewSet):
         return EnhancedFlat.objects.none()  # type: ignore
 
 
+# Member Management Views
+class MemberViewSet(viewsets.ModelViewSet):
+    """ViewSet for Member management - Full CRUD operations for SUB_ADMIN"""
+    queryset = User.objects.filter(role='MEMBER')  # type: ignore
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['is_approved', 'society']
+    search_fields = ['first_name', 'last_name', 'phone_number', 'email']
+    ordering = ['-date_joined']
+    
+    def get_queryset(self):
+        """Filter members based on user role"""
+        user = self.request.user
+        if user.role == 'SUB_ADMIN':
+            return User.objects.filter(role='MEMBER', society=user.society)  # type: ignore
+        elif user.role == 'ADMIN':
+            # Admin can see members from all societies they manage
+            managed_society_ids = user.managed_societies.values_list('society_id', flat=True)  # type: ignore
+            return User.objects.filter(role='MEMBER', society_id__in=managed_society_ids)  # type: ignore
+        elif user.role == 'MEMBER':
+            # Members can only see their own profile
+            return User.objects.filter(id=user.id)  # type: ignore
+        return User.objects.none()  # type: ignore
+    
+    def get_permissions(self):
+        """Custom permission logic for different actions"""
+        if self.action == 'list' or self.action == 'retrieve':
+            # Allow SUB_ADMIN, ADMIN, and MEMBER to view members
+            permission_classes = [permissions.IsAuthenticated]
+        elif self.action in ['update', 'partial_update']:
+            # Allow SUB_ADMIN and ADMIN to update members, members can update their own profile
+            permission_classes = [permissions.IsAuthenticated]
+        elif self.action == 'destroy':
+            # Only SUB_ADMIN and ADMIN can delete members
+            permission_classes = [permissions.IsAuthenticated]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    
+    def get_serializer_class(self) -> type[UserProfileSerializer] | type[EnhancedUserProfileSerializer]:  # type: ignore
+        """Use different serializers for different actions"""
+        if self.action in ['update', 'partial_update']:
+            return EnhancedUserProfileSerializer
+        return UserProfileSerializer
+    
+    def update(self, request, *args, **kwargs):
+        """Update member profile"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        user = request.user
+        
+        # Check permissions
+        if user.role == 'MEMBER' and user.id != instance.id:
+            return Response(
+                {'error': 'Members can only update their own profile'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Deactivate member instead of deleting"""
+        instance = self.get_object()
+        user = request.user
+        
+        # Check permissions
+        if user.role not in ['SUB_ADMIN', 'ADMIN']:
+            return Response(
+                {'error': 'Only SUB_ADMIN and ADMIN can deactivate members'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Don't allow members to deactivate themselves
+        if user.id == instance.id:
+            return Response(
+                {'error': 'You cannot deactivate your own account'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Deactivate the member
+        instance.is_active = False
+        instance.save()
+        
+        return Response(
+            {'message': f'Member {instance.get_full_name()} has been deactivated'}, 
+            status=status.HTTP_200_OK
+        )
+
 # Member Registration Views
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
